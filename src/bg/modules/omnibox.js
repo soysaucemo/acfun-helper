@@ -1,63 +1,70 @@
 /**
  * omnibox 地址栏扩展模块
  */
-class Ohminibox{
-    constructor(){
-
+class Ohminibox {
+    constructor() {
+        this.omnibox = chrome.omnibox;
+        this.initMod();
     }
-    
-    registerOmnibox(){
+
+    initMod() {
+        if (myBrowser() == "FF") {
+            this.omnibox = browser.omnibox;
+        }
+    }
+
+    registerOmnibox() {
         console.log("Registered Omnibox Mod.")
-        chrome.omnibox.onInputStarted.addListener(() => {});
-        chrome.omnibox.onInputChanged.addListener((text, suggest) => {
-            let x0 = RegExp('-ac(.*)');
-            let y0 = x0.exec(text);
-            if(y0==null){
-                fetch(`https://www.acfun.cn/rest/pc-direct/search/suggest?count=6&keyword=${text}&callback=jQuery35104624576750465499_1592378440178&_=1592378440180`).then((res)=>{return res.text();})
-                .then((res)=>{
-                    try {
-                        let regX=RegExp("jQuery35104624576750465499_1592378440178(.*)");
-                        let result = regX.exec(res)[1].replace('(','').replace(')','');
-                        var x = JSON.parse(result);
-                        var y=[];
-                    } catch (error) {
-                        console.log(`    [LOG]Backend-Omnibox>registerOmnibox: [${formatDate(new Date(),true)}] 没有找到准确的关键字`);
-                    }
-                    try {
-                        var keywordNum = x.suggestKeywords.length;
-                    } catch (error) {
-                        var keywordNum = 1;
-                    }
-                    for(let i = 0;i<keywordNum;i++){
+        this.omnibox.onInputStarted.addListener(() => { });
+        this.omnibox.onInputChanged.addListener((text, suggest) => {
+            if (RegExp('-ac(.*)').exec(text) == null) {
+                fetch(`https://www.acfun.cn/rest/pc-direct/search/suggest?count=6&keyword=${text}&callback=jQuery35104624576750465499_1592378440178&_=1592378440180`).then((res) => { return res.text(); })
+                    .then((res) => {
                         try {
-                            let z = `{"content": "${x.suggestKeywords[i]}","description": "是否要查看 ${x.suggestKeywords[i]} 在主站有关内容？"}`;
-                            var zo = JSON.parse(z);
+                            var x = JSON.parse(RegExp("jQuery35104624576750465499_1592378440178(.*)").exec(res)[1].replace('(', '').replace(')', ''));
                         } catch (error) {
-                            var zo={};
+                            console.log(`    [LOG]Backend-Omnibox>registerOmnibox: [${formatDate(new Date(), true)}] 没有找到准确的关键字`);
                         }
-                        try {
-                            y.push(zo);
-                        } catch (error) {}
-                    }
-                    try {
-                        suggest(y);
-                    } catch (error) {}
-                })
+                        let suggestions;
+                        if (x.suggestKeywords.length != 0) {
+                            suggestions = x.suggestKeywords.map((val) => {
+                                return {
+                                    "content": val,
+                                    "description": chrome.i18n.getMessage("omniboxInputSuggestion", val)
+                                }
+                            });
+                            suggest(suggestions);
+                        }
+                    })
             }
         });
-        
-        chrome.omnibox.onInputEntered.addListener((text) => {
-            let x0 = RegExp('-ac(.*)');
-            let y0 = x0.exec(text);
-            if(y0==null){
-                window.open('https://www.acfun.cn/search?keyword='+String(encodeURI(text)));
-            }else{
-                window.open('https://www.acfun.cn/v/ac'+String(encodeURI(y0[1])));
+
+        this.omnibox.onInputEntered.addListener((text, disposition) => {
+            let y0 = RegExp('-ac(.*)').exec(text);
+            let url;
+            if (y0 == null) {
+                url = 'https://www.acfun.cn/search?keyword=' + String(encodeURI(text));
+            } else {
+                url = 'https://www.acfun.cn/v/ac' + String(encodeURI(y0[1]));
+            }
+            switch (disposition) {
+                case "currentTab":
+                    window.open(url) || browser.tabs.update({ url });
+                    break;
+                case "newForegroundTab":
+                    window.open(url) || browser.tabs.create({ url });
+                    break;
+                case "newBackgroundTab":
+                    browser.tabs.create({ url, active: false });
+                    break;
+                default:
+                    window.open(url) || browser.tabs.create({ url });
+                    break;
             }
         });
-        
-        chrome.omnibox.setDefaultSuggestion({
-            "description": "进入主站"
+
+        this.omnibox.setDefaultSuggestion({
+            "description": chrome.i18n.getMessage("omniboxDefaultSuggestion")
         });
     }
 }
