@@ -38,6 +38,7 @@ const defaults = {
   player_mode: 'default',//进入页面时播放器的状态，default:默认 film:观影模式  web:网页全屏 screen:桌面全屏
   liveFloowNotif: false,
   liveFollowOpenNow: false,
+  liveCloseNotif: false,
   videoQualityStrategy: '0',
   livePlayerEnhc: false,
   autoJumpLastWatchSw: false,
@@ -72,7 +73,6 @@ const defaults = {
   liveCommentTimeTag: true,
   LiveUserFocus: false,
   LiveWatchTimeRec_popup: false,
-  articlePartIndexDarken: false,
   multiPartListSpread: true,
   BangumiNotif: true,
   BangumiPlan: true,
@@ -87,6 +87,7 @@ const defaults = {
   commentPageEasyTrans: true,
   liveMediaSession: false,
   videoMediaSession: false,
+  videoAchievement: true,
   userCenterBeautify: true,
   pageTransKeyBind: true,
   quickCommentSubmit: false,
@@ -94,6 +95,7 @@ const defaults = {
   Dev_thinScrollbar: false,
   liveIndexRankNum: true,
   timelineDots: false,
+  notificationContent: { commentNotif: true, likeNotif: false, giftNotif: true },
   frameStepSetting: { enabled: false, controlUI: false, }
 };
 const readOnlyKey = ["extendsName", "upUrlTemplate", "userInfo"];
@@ -109,7 +111,7 @@ const REG = {
   mlive: new RegExp("https://m.acfun.cn/live/detail/*"),//移动版直播
   live: new RegExp("https://live.acfun.cn/live/*"),//直播
   liveIndex: new RegExp("https://live.acfun.cn"),//直播主页
-  userHome: new RegExp("http(s)?://www.acfun.cn/u/\\d+"),//用户中心
+  userHome: new RegExp("http(s)?://www.acfun.cn/u/(\\d+)"),//用户中心
   partIndex: new RegExp("/v/list"),//分区主页
   articleDetail: new RegExp("/v/as"),//文章分区详细页
   acVid: new RegExp('http(s)?:\\/\\/www.acfun.cn\\/v\\/ac(\\d+)'),
@@ -152,33 +154,27 @@ function transOptions(options) {
 //================配置存储转换处理==============
 function userMap(options) {
   let map = new Map();
-  for (const key in options) {
-    if (key.indexOf("AC_") != -1) {
-      map.set(key, options[key]);
-    }
+  let raw = Object.keys(options.UserMarks);
+  for (let i = 0; i < raw.length; i++) {
+    map.set(raw[i], options.UserMarks[raw[i]])
   }
   return map;
 }
 
 function upMap(options) {
   let map = new Map();
-  for (const key in options) {
-    if (key.indexOf("FILTER_") != -1) {
-      map.set(key, options[key]);
-    }
+  let raw = Object.keys(options.UserFilter);
+  for (let i = 0; i < raw.length; i++) {
+    map.set(raw[i], options.UserFilter[raw[i]])
   }
   return map;
 }
 
 function upMapReverse(options) {
   let map = new Map();
-  for (const key in options) {
-    if (key.indexOf("FILTER_") != -1) {
-      let v = options[key].name;
-      if (v != null && v != undefined) {
-        map.set(v, key);
-      }
-    }
+  let raw = Object.keys(options.UserFilter);
+  for (let i = 0; i < raw.length; i++) {
+    map.set(options.UserFilter[raw[i]].name, raw[i])
   }
   return map;
 }
@@ -801,21 +797,44 @@ function removeAPrefix(_$targetDom) {
 }
 
 /**
- * 使用UI对象来判断用户是否登录
- * @param {boolean} mode 默认为true，表示可以直接由UI判断出，而不需要使用jquery递归查询的办法去找出对象元素的css属性，以判断是否登录，false时是性能的下策，但是结果肯定没错。
+ * 从string中的HTML内容创建DOM
+ * @param {*} str 
+ * @returns HTMLElement
+ */
+function stringToDOM(str) {
+  let div = document.createElement("div");
+  if (typeof str == "string") {
+    div.innerHTML = str;
+  }
+  return div.childNodes;
+}
+
+/**
+ * 判断用户是否登录
+ * @param {string} dept "video" or "article"
+ * @param {string} evidence "cookies" or "ui"
  * @returns {boolean} 状态
  */
-function isLoginByUi(mode = true) {
-  if (mode) {
-    if (document.querySelector("#header-guide > li.guide-item.guide-user > a").childElementCount == 0) {
-      return false;
+function isLogin(dept = "video", evidence = "cookies") {
+  if (evidence == "cookies") {
+    return Boolean(getcookie("ac_username"));
+  } else if (evidence == "ui") {
+    switch (dept) {
+      case "video":
+        if ($("#ACPlayer > div > div.container-video > div > div.container-controls > div.control-bar-bottom > div.input-area > span.wrap-go2login").is(":hidden")) {
+          return true;
+        } else {
+          return false;
+        }
+      case "article":
+        let isLogined = false;
+        try {
+          isLogined = document.querySelector("#header-guide > li.guide-item.guide-user > a").childElementCount == 0;
+        } catch (error) {
+          isLogined = getcookie("ac_username") != false ? true : false;
+        }
+        return isLogined;
     }
-    return true;
-  } else {
-    if ($("#ACPlayer > div > div.container-video > div > div.container-controls > div.control-bar-bottom > div.input-area > span.wrap-go2login").is(":hidden")) {
-      return true;
-    }
-    return false;
   }
 }
 
@@ -849,7 +868,7 @@ function judgeActivePart() {
   let x = document.querySelector("#main-content > div.right-column > div.part > div.fl.part-wrap > ul").children;
   for (let i = 0; i < x.length; i++) {
     if (x[i].classList[1] == "active") {
-      return x + 1;
+      return i + 1;
     }
   }
 }

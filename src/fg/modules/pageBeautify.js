@@ -136,39 +136,40 @@ class PageBeautify {
         var url = window.location.toString();
         if (REG.userHome.test(url)) {
           this_page = 1;
-        } else {
         }
         let node = $("div.guide-item-con").find("p").eq(0);
-        if (node) {
-          node.after(
-            '<p class="crx-guid-p"><a target="_blank" href="https://live.acfun.cn/live/' +
-            a.info.userId +
-            '">我的直播间</a></p>'
-          );
-          node.after('<p class="crx-guid-p">UID: ' + a.info.userId + "</p>");
-          node.after(
-            '<p class="crx-guid-p"><a href="https://www.acfun.cn/member/#area=banana" target="_blank">香蕉: ' +
-            a.info.banana +
-            "</a></p>"
-          );
-          node.after(
-            '<p class="crx-guid-p"><a href="https://www.acfun.cn/member/#area=golden-banana" target="_blank">金香蕉: ' +
-            a.info.goldBanana +
-            "</p>"
-          );
-          node.after(
-            '<p class="crx-guid-p"><a href="https://www.acfun.cn/member/feeds?tab=following" target="_blank">关注 ' +
-            a.info.following +
-            '</a> - <a href="https://www.acfun.cn/member/feeds?tab=fans" target="_blank">听众: ' +
-            a.info.followed +
-            "</a></p>"
-          );
-          node.after(
-            '<p class="crx-guid-p">注册时间: ' +
-            formatDate(new Date(a.info.registerTime)) +
-            "</p>"
-          );
-        }
+        getAsyncDom(".guide-item.guide-user.user-logined", () => {
+          if (node) {
+            node.after(
+              '<p class="crx-guid-p"><a target="_blank" href="https://live.acfun.cn/live/' +
+              a.info.userId +
+              '">我的直播间</a></p>'
+            );
+            node.after('<p class="crx-guid-p">UID: ' + a.info.userId + "</p>");
+            node.after(
+              '<p class="crx-guid-p"><a href="https://www.acfun.cn/member/#area=banana" target="_blank">香蕉: ' +
+              a.info.banana +
+              "</a></p>"
+            );
+            node.after(
+              '<p class="crx-guid-p"><a href="https://www.acfun.cn/member/#area=golden-banana" target="_blank">金香蕉: ' +
+              a.info.goldBanana +
+              "</p>"
+            );
+            node.after(
+              '<p class="crx-guid-p"><a href="https://www.acfun.cn/member/feeds?tab=following" target="_blank">关注 ' +
+              a.info.following +
+              '</a> - <a href="https://www.acfun.cn/member/feeds?tab=fans" target="_blank">听众: ' +
+              a.info.followed +
+              "</a></p>"
+            );
+            node.after(
+              '<p class="crx-guid-p">注册时间: ' +
+              formatDate(new Date(a.info.registerTime)) +
+              "</p>"
+            );
+          }
+        }, 1000)
         let cssStr = `
         .header .guide-msg .guide-item-con .msg-item{
           font-size: 14px;
@@ -224,15 +225,16 @@ class PageBeautify {
   indexBeautify(opt, shadowSw = false, searchBox = true) {
     let cssStr;
     //模糊
-    cssStr = `.nav-fixed{background-color:#f8f8f896;border-bottom:0px;backdrop-filter:blur(1.2vw)} #header{background-color:#f8f8f896;backdrop-filter:blur(1.2vw);} ${shadowSw ? "box-shadow: 0 2px 4px rgb(0 0 0 / 26%);}" : ""} ${opt ? "div.header-nav,div.header-nav>ul{background: #f8f8f800 !important;} .channel-header.fixed .wrap{backdrop-filter: blur(1.2vw);border-bottom:0px}" : ""}`
+    cssStr = `.nav-fixed{background-color:#f8f8f896 !important;border-bottom:0px;backdrop-filter:blur(1.2vw)!important} #header{background-color:#f8f8f896;backdrop-filter:blur(1.2vw); ${shadowSw ? "box-shadow: 0 2px 4px rgb(0 0 0 / 26%);}" : ""}}${opt ? "div.header-nav,div.header-nav>ul{background: #ffffff00 !important;} .channel-header.fixed .wrap{backdrop-filter: blur(1.2vw);border-bottom:0px;background: #f8f8f896;!important}" : ""} 
+    .top-nav .first-container .first-item .first-link{color:#333 !important} 
+    #header .header-guide .item .guide-item-title{color:#333 !important}
+    #header .search-box .form input{color: black;border:0px;background:#0000001a}`
     //banner定位修正
     cssStr += ` .header .header-banner{margin-top: -47px;}`;
     //搜索栏 - 分区主页 - 主页 - 个人展示中心
     searchBox
       ? (cssStr += `.search-box input,[data-c-w-header] .search-box .form input,[data-c-w-header] .search-box .form input{border: none;background: 0 0;border-bottom: 1px solid;color: black;border-radius: 0px!important;} .search-box .search-btn{background: ##ff4b4b70;border-radius: 0px;}`)
       : "";
-    //<a>标签动画
-    cssStr += `a {transition: color .2s ease, background-color .2s ease;}`;
     createElementStyle(cssStr);
   }
 
@@ -318,6 +320,7 @@ class PageBeautify {
 		.ac-space-video .video .title{
 			font-size: 18px;
 			line-height: 100px;
+      align-items:center;
 		}
 		`;
     createElementStyle(cssStr, document.head, "widenUCVideoList");
@@ -385,30 +388,6 @@ class PageBeautify {
     );
   }
 
-  darkenArticlePartIndex() {
-    document
-      .getElementsByClassName("main")[0]
-      .style.setProperty("background", "#303030", "important");
-    document.getElementsByTagName("html")[0].style.cssText =
-      "background:#303030";
-    createElementStyle(
-      ".delveField .ArticleDelveFieldContent li .article-delve-text a,.dynamicsUpdateTitle .dynamicsUpdateSub,.dynamicsUpdateTitle .dynamicsUpdateChange span,#container > div.ArticleBlockLeft.ArticleDynamicsContent.extend-pab > div.ArticleLeftTitle > div:nth-child(2) > a,#container > div.ArticleBlockLeft.ArticleDynamicsContent.extend-pab > div.ArticleLeftTitle > div:nth-child(1) > a,#container > div.delveField.ArticleBlockRight > div > b,.atc-title,.gg-title,.HotArticleText,.bar-action,.ArticleRightTitle,.ArticleRightTitle,.ref-bar-btn,.header .nav li a,.ArticleListUser .ArticleListUserContent>a,.atc-info>a{color:white !important;}",
-      document.getElementsByTagName("head")[0]
-    );
-    createElementStyle(
-      ".header .nav .nav-parent,.header .nav{background-color:#303030;}",
-      document.getElementsByTagName("head")[0]
-    );
-    createElementStyle(
-      ".nav-sub, .footer{display:none !important;}",
-      document.getElementsByTagName("head")[0]
-    );
-    createElementStyle(
-      ".footer{display:none !important;}",
-      document.getElementsByTagName("head")[0]
-    );
-  }
-
   userMoment(href) {
     let x = document.createElement("li");
     x.dataset.index = "moment";
@@ -466,8 +445,8 @@ class PageBeautify {
     document.onkeydown = (event) => {
       var e = event || window.e;
       var keyCode = e.keyCode || e.which || e.charCode;
-      var shiftKey = e.shiftKey || e.metaKey;
-      if (shiftKey && keyCode == 13) {
+      var ctrlKey = e.ctrlKey || e.metaKey;
+      if (ctrlKey && keyCode == 13) {
         page == "index"
           ? document.querySelector(".btn-send-comment").click()
           : document.querySelector(".send-btn.enable").click();

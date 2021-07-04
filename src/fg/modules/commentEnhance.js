@@ -52,11 +52,12 @@ class CommentEnhance {
             let loading = $('.ac-comment-loading').html();
             if (nodes.length > 0 && loading == '') {
                 nodes.each(async function () {
+                    let UserMarks = await getStorage("UserMarks");
                     let exists = $(this).parent().find('.pos.simple');
                     if (exists.length == 0) {
                         let userId = $(this).data('userid');
                         let userName = $(this).text();
-                        let tagInfo = await getStorage("AC_" + userId).then(res => { return res["AC_" + userId] });
+                        let tagInfo = UserMarks.UserMarks[userId];
                         if (tagInfo != undefined && tagInfo.tag != '' && tagInfo.tag != undefined) {
                             if (userName != tagInfo.name) {
                                 $(this).after('<span title="' + tagInfo.name + '" class="pos simple">' + tagInfo.tag + '</span>');
@@ -84,6 +85,7 @@ class CommentEnhance {
                     if (text.indexOf('标记') == -1) {
                         $(this).addClass('comment-mark-parent');
                         $(this).append('<span class="comment-mark">标记PO</span>');
+                        $(this).append('<span class="comment-jumpLink">复制楼层链接</span>');
                         $(this).append('<span class="commentContent-mark">标记评论</span>');
                         $(this).append('<span class="comment-cap">保存为HTML</span>');
                         $(this).on('click', '.commentContent-mark', async function (e) {
@@ -245,7 +247,16 @@ class CommentEnhance {
                             setTimeout(function () { saveas.parentNode.removeChild(saveas); }, 0)
                             document.addEventListener('unload', function () { window.URL.revokeObjectURL(url); });
                         });
-                        $(this).on('click', '.comment-mark', function () {
+                        $(this).on('click', '.comment-jumpLink', async function (e) {
+                            var aux = document.createElement("input");
+                            aux.setAttribute("value", window.location.href + "#ncid=" + e.target.parentElement.parentElement.parentElement.parentElement.parentElement.dataset.commentid);
+                            document.body.appendChild(aux);
+                            aux.select();
+                            document.execCommand("copy");
+                            document.body.removeChild(aux);
+                            LeftBottomNotif("AcFun助手：评论楼层分析的跳转连接已经复制！", "info", 1500);
+                        })
+                        $(this).on('click', '.comment-mark', async function () {
                             let userNode = $(this).parent().parent().parent().find('.name').eq(0);
                             let username = userNode.text();
                             let userId = userNode.data("userid");
@@ -254,15 +265,13 @@ class CommentEnhance {
                             let x = new RegExp("(.*)#.*");
                             let y = x.exec(window.location.href)
                             let dougaAddr = y ? y[1] : window.location.href;
-                            let title = '为『' + username + '』添加标记，最多10个字符';
-                            let tag = prompt(title, "");
-                            let title2 = '为『' + username + '』添加更多描述（可选）';
-                            let describe = prompt(title2, "");
+                            let tag = prompt('为『' + username + '』添加标记，最多10个字符', "");
+                            let describe = prompt('为『' + username + '』添加更多描述（可选）', "");
                             let tag_trim = tag.trim();
                             if (tag_trim != '' && tag_trim != null && tag_trim.length <= 10) {
-                                let key = "AC_" + userId;
-                                let value = { name: username, tag: tag, refer: dougaAddr, commentId: markCommentId, evidence: userComment, desc: describe ? describe : "" };
-                                chrome.storage.local.set({ [key]: value }, function () {
+                                let raw = await getStorage("UserMarks");
+                                raw.UserMarks[userId] = { name: username, tag: tag, refer: dougaAddr, commentId: markCommentId, evidence: userComment, desc: describe ? describe : "" };
+                                chrome.storage.local.set({ "UserMarks": raw.UserMarks }, function () {
                                     userNode.parent().find('.pos.simple').remove();
                                     userNode.after('<span class="pos simple">' + tag + '</span>');
                                 });
@@ -313,10 +322,11 @@ class CommentEnhance {
             if (nodes.length > 0) {
                 nodes.each(async function () {
                     let exists = $(this).parent().find('.pos.simple');
+                    let UserMarks = await getStorage("UserMarks");
                     if (exists.length == 0) {
                         let userId = $(this).data('userid');
                         let userName = $(this).text();
-                        let tagInfo = await getStorage("AC_" + userId).then(res => { return res["AC_" + userId] });
+                        let tagInfo = UserMarks.UserMarks[userId];
                         if (tagInfo != undefined && tagInfo.tag != '' && tagInfo.tag != undefined) {
                             if (userName != tagInfo.name) {
                                 $(this).after('<span title="' + tagInfo.name + '" class="pos simple">' + tagInfo.tag + '</span>');
@@ -368,23 +378,27 @@ class CommentEnhance {
         var timer = setInterval(function () {
             let nodes = $("div[data-commentid='" + rootCommentId + "']").find('.area-comm-more');
             if (nodes.length > 0) {
-
                 nodes.each(function () {
                     let text = $(this).text();
                     if (text.indexOf('标记') == -1) {
                         $(this).addClass('comment-mark-parent');
                         $(this).append('<span class="comment-mark">标记</span>');
-                        $(this).on('click', '.comment-mark', function () {
+                        $(this).on('click', '.comment-mark', async function () {
                             let userNode = $(this).parent().parent().parent().find('.name').eq(0);
                             let username = userNode.text();
                             let userId = userNode.data("userid");
-                            let title = '为『' + username + '』添加标记，最多10个字符';
-                            let tag = prompt(title, "");
+                            let tag = prompt('为『' + username + '』添加标记，最多10个字符', "");
                             let tag_trim = tag.trim();
+                            let markCommentId = $(this).parent().parent().parent().parent().parent().data("commentid");
+                            let userComment = $(this).parent().parent().parent().find('.area-comment-des-content')[0].innerHTML;
+                            let x = new RegExp("(.*)#.*");
+                            let y = x.exec(window.location.href)
+                            let dougaAddr = y ? y[1] : window.location.href;
+                            let describe = prompt('为『' + username + '』添加更多描述（可选）', "");
                             if (tag_trim != '' && tag_trim != null && tag_trim.length <= 10) {
-                                let key = "AC_" + userId;
-                                let value = { name: username, tag: tag };
-                                chrome.storage.local.set({ [key]: value }, function () {
+                                let raw = await getStorage("UserMarks");
+                                raw.UserMarks[userId] = { name: username, tag: tag_trim, refer: dougaAddr, commentId: markCommentId, evidence: userComment, desc: describe ? describe : "" };
+                                chrome.storage.local.set({ "UserMarks": raw.UserMarks }, function () {
                                     userNode.parent().find('.pos.simple').remove();
                                     userNode.after('<span class="pos simple">' + tag + '</span>');
                                 });
@@ -596,7 +610,7 @@ class CommentEnhance {
      */
     searchScanForPlayerTime() {
         var timer = setInterval(() => {
-            let nodes = $('.area-comment-des-content');
+            let nodes = $('.area-comment-des-content:not(:has(.quickJump))');
             let loading = $('.ac-comment-loading').html();
             let reg_for_time = this.reg_for_time;
             let reg_for_3partime = this.reg_for_time3part;
@@ -623,13 +637,13 @@ class CommentEnhance {
                                     partTarrgetNum = partTarrget[0].replace(/[^1-9]/ig, "")
                                 }
                                 timeTarget3p ? timeTarget3p = timeTarget3p[0].replace(/分/, ':').replace(/秒/, '') : ''
-                                after_html = after_html + `<a id='quickJump' onclick="quickJump('${timeTarget3p}',${partTarrgetNum && partTarrgetNum})">${partTarrget ? partTarrget[0] + ' ' : ' '} ${timeTarget3p}</a>`;
+                                after_html = after_html + `<a class='quickJump' onclick="quickJump('${timeTarget3p}',${partTarrgetNum && partTarrgetNum})">${partTarrget ? partTarrget[0] + ' ' : ' '} ${timeTarget3p}</a>`;
                             } else if (timeTarget) {
                                 if (partTarrget) {
                                     partTarrgetNum = partTarrget[0].replace(/[^1-9]/ig, "")
                                 }
                                 timeTarget ? timeTarget = timeTarget[0].replace(/分/, ':').replace(/秒/, '') : ''
-                                after_html = after_html + `<a id='quickJump' onclick="quickJump('${timeTarget}',${partTarrgetNum && partTarrgetNum})">${partTarrget ? partTarrget[0] + ' ' : ' '} ${timeTarget}</a>`;
+                                after_html = after_html + `<a class='quickJump' onclick="quickJump('${timeTarget}',${partTarrgetNum && partTarrgetNum})">${partTarrget ? partTarrget[0] + ' ' : ' '} ${timeTarget}</a>`;
                             }
                             after_html = after_html + ' ' + a[i] + "<br>";
                         }
@@ -644,35 +658,11 @@ class CommentEnhance {
 
     }
 
-    immedComt() {
-        let ConfKey = 'yeKfnoCtnemmoCeQ'
-        var curKeyName = ConfKey.split("").reverse().join("");
-        console.log(curKeyName)
-        chrome.storage.local.get([curKeyName], function (data) {
-            for (let z in data) {
-                console.log(data[z]);
-                var P0st = data[z];
-            };
-            let url = window.location.toString();
-            let videoPage = new RegExp("http(s)?://www.acfun.cn/v/ac(.*)");
-            let acVid = videoPage.exec(url)[2];
-            let commt = encodeURI(`sourceId=${acVid}&sourceType=3&content=${P0st}&replyToCommentId=`)
-            fetch('https://www.acfun.cn/rest/pc-direct/comment/add', { method: "POST", headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Accept': "accept: application/json, text/plain, */*" }, credentials: 'include', body: commt })
-                .then((res) => { return res.text(); })
-                .then((res) => {
-                });
-            // console.log(`sourceId=${acVid}&sourceType=3&content=${P0st}&replyToCommentId=`)
-            // console.log(commt);
-        });
-    }
-
-
     /**
      * 选中时间 按shift+A 跳转 开关依赖评论区空降功能
      * @todo 与倍速快捷键一样都绑定到了document上 正则未做严格匹配(你甚至能让iphone8跳转到8s)
      * @param {Int16Array} settingKeyCode 
      */
-
     easySearchScanForPlayerTime(settingKeyCode) {
         document.onkeypress = (e) => {
             if (e.shiftKey && e.keyCode === settingKeyCode[0]) {
@@ -690,6 +680,33 @@ class CommentEnhance {
         return seconds;
     }
 
-}
+    /**
+     * 历史成就
+     */
+    historocalAchieve() {
+        chrome.runtime.sendMessage({ action: "achievementEvent", params: { responseRequire: true, asyncWarp: true, data: { action: "get", url: window.location.href } } }, function (response) {
+            var tag;
+            try {
+                tag = document.querySelector(".reco-tag").innerText;
+            } catch (error) {
+                tag = null;
+            }
+            if (response.data.length != 0) {
+                //数据库有数据
+                if (tag) {
+                    return
+                } else {
+                    //要加上Tag
+                    addElement({ tag: 'a', target: document.querySelector(".video-description .title"), classes: 'reco-tag', createMode: "headAppnd", thisHTML: `${new Date(response.data[0].date).getFullYear()}-${new Date(response.data[0].date).getMonth() + 1}-${new Date(response.data[0].date).getDate()} ${response.data[0].tag}` })
+                }
+            } else {
+                if (tag) {
+                    //数据库没数据，并且存在榜单数据，那就写数据进数据库
+                    chrome.runtime.sendMessage({ action: "achievementEvent", params: { responseRequire: true, asyncWarp: true, data: { action: "put", url: window.location.href, tagData: tag } } }, function (response) { })
+                }
+            }
+        })
+    }
 
+}
 

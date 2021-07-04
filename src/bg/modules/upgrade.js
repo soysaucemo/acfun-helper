@@ -6,9 +6,10 @@ class UpgradeAgent {
     constructor() {
         this.ModuleName = 'UpgradeAgent';
         this.checkConfigDay = [3, 7]
-        this.dateTimer = null;
         this.bangumiPlan = new BangumiPlan();
         this.option = '';
+        this.scheduler = myBrowser() == "Chrome" ? chrome.alarms : browser.alarms;
+        this.notificationListPurgeCount = 0;
     }
 
     /**
@@ -46,34 +47,46 @@ class UpgradeAgent {
     }
 
     /**
+     * 每隔三天清除助手本体的通知响应列表
+     * @description 对于常年不关浏览器的同志来说相比是很需要的
+     */
+    purgeNotificationList() {
+        if (this.notificationListPurgeCount > 2) {
+            chrome.notifications.getAll((e) => {
+                //e={"549491live624122": true}
+                for(let i in e){
+                    chrome.notifications.clear(i,function(){});
+                }
+            })
+            this.notificationListPurgeCount = 0;
+        }
+    }
+
+    /**
      * 总
      */
     async upgradeMain() {
         console.log("Registered Upgrade Check Mod.");
         // 配置获取
-        let x = await getStorage("krnl_globalTimer");
-        this.dateTimer = x.krnl_globalTimer;
-        let x1 = await getStorage("BangumiNotif");
-        let BangumiNotifsw = x1.BangumiNotif;
-        let x2 = await getStorage("BangumiPlan");
-        let BangumiPlansw = x2.BangumiPlan;
-        // 启动项
-        this.checkUpdate();
-        this.bangumiPlan.onLoad();
-        BangumiNotifsw && this.bangumiPlan.fetchBangumiInfo();
-        BangumiPlansw && this.bangumiPlan.notifyBangumiUpdate();
+        let x = await getStorage("krnl_globalTimer").then(function (e) {
+            return e.krnl_globalTimer;
+        })
+        if (x) {
+            this.scheduleTasks();
+        }
         // 定时执行（一天的样子）
-        this.dateTimer && clearInterval(this.dateTimer);
-        this.dateTimer = setInterval(async () => {
-            // 定时器内部配置获取
-            let x1 = await getStorage("BangumiNotif");
-            let BangumiNotifsw = x1.BangumiNotif;
-            let x2 = await getStorage("BangumiPlan");
-            let BangumiPlansw = x2.BangumiPlan;
-            //调用
-            this.checkUpdate();
-            BangumiNotifsw && this.bangumiPlan.fetchBangumiInfo();
-            BangumiPlansw && this.bangumiPlan.notifyBangumiUpdate();
-        }, 43200000);
+        this.scheduler.create("scheduleTasks", { "periodInMinutes": 1440 })
+    }
+
+    async scheduleTasks() {
+        //配置
+        let BangumiNotifsw = await getStorage("BangumiNotif").then(function (e) { return e.BangumiNotif });
+        let BangumiPlansw = await getStorage("BangumiPlan").then(function (e) { return e.BangumiPlan });
+
+        //调用
+        this.checkUpdate();
+        BangumiPlansw && this.bangumiPlan.fetchBangumiInfo();
+        BangumiNotifsw && this.bangumiPlan.notifyBangumiUpdate();
+        this.purgeNotificationList();
     }
 }

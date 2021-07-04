@@ -26,10 +26,10 @@ class Reader {
                 border-bottom: 0px solid #eee;
             }
             div.article-content{
-                line-height: 30px;
+                line-height: 30px !important;
             }
             /* #article-up > div.article-content{ */
-            #article-content .article-content p{
+            #article-content .article-content p,#article-up > div.article-content > div > div{
                 justify-content: center;
                 transition: all 1s cubic-bezier(.25,1,.39,0.89) .13s;
                 font-size: 18px !important;
@@ -62,8 +62,11 @@ class Reader {
         //监听是否点击图片进入了漫画模式
         var mangaObserver = new MutationObserver(() => {
             if (document.querySelector('#box-image-manga')) {
+                document.querySelector("#header").style.display = "none";
                 this.drag();
                 rotateSup && this.picRotate();
+            }else{
+                document.querySelector("#header").style.display = "block";
             }
         });
         mangaObserver.observe(mangaNode, mangaOptions);
@@ -113,6 +116,7 @@ class Reader {
         }
         //鼠标抬起事件
         window.onmouseup = function () {
+            // document.querySelector("#header").style.display = "block";
             //开关关闭
             isDown = false;
             dv.style.cursor = 'default';
